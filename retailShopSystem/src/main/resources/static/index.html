@@ -20,13 +20,33 @@
             --shadow: 0 18px 45px rgba(30, 41, 59, 0.08);
         }
 
+        :root[data-theme="dark"] {
+            --bg: #0f172a;
+            --panel: #111827;
+            --panel-alt: #1f2937;
+            --primary: #8aa2ff;
+            --primary-dark: #6a84ff;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --border: #334155;
+            --shadow: 0 18px 45px rgba(2, 6, 23, 0.6);
+        }
+
         * { box-sizing: border-box; }
 
         body {
             margin: 0;
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 100%);
+            background: linear-gradient(135deg, var(--bg) 0%, #dfeafe 100%);
             color: var(--text);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        :root[data-theme="dark"] body {
+            background: linear-gradient(135deg, #020817 0%, #0f172a 100%);
         }
 
         .app-shell {
@@ -47,6 +67,11 @@
             box-shadow: var(--shadow);
         }
 
+        :root[data-theme="dark"] .topbar {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(51, 65, 85, 0.9);
+        }
+
         .brand h1 {
             margin: 0;
             font-size: clamp(1.7rem, 2vw, 2.5rem);
@@ -57,7 +82,7 @@
             color: var(--muted);
         }
 
-        .refresh-btn, .primary-btn, .secondary-btn, .danger-btn {
+        .refresh-btn, .primary-btn, .secondary-btn, .danger-btn, .theme-toggle {
             border: none;
             border-radius: 12px;
             padding: 12px 16px;
@@ -67,9 +92,16 @@
             transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .refresh-btn, .secondary-btn {
+        .refresh-btn, .secondary-btn, .theme-toggle {
             background: #edf2ff;
             color: var(--primary-dark);
+        }
+
+        :root[data-theme="dark"] .refresh-btn,
+        :root[data-theme="dark"] .secondary-btn,
+        :root[data-theme="dark"] .theme-toggle {
+            background: #1f2937;
+            color: #dbeafe;
         }
 
         .primary-btn {
@@ -83,7 +115,7 @@
             color: white;
         }
 
-        .refresh-btn:hover, .primary-btn:hover, .secondary-btn:hover, .danger-btn:hover {
+        .refresh-btn:hover, .primary-btn:hover, .secondary-btn:hover, .danger-btn:hover, .theme-toggle:hover {
             transform: translateY(-1px);
         }
 
@@ -129,6 +161,10 @@
             padding: 24px;
         }
 
+        :root[data-theme="dark"] .panel {
+            background: var(--panel);
+        }
+
         .panel h2 {
             margin: 0 0 20px;
             font-size: 1.35rem;
@@ -150,10 +186,16 @@
             width: 100%;
             border: 1px solid #d7e2ff;
             background: #f9fbff;
+            color: var(--text);
             border-radius: 12px;
             padding: 12px 14px;
             font-size: 1rem;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        :root[data-theme="dark"] .form-group input {
+            background: #0b1220;
+            border-color: var(--border);
         }
 
         .form-group input:focus {
@@ -177,6 +219,21 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 16px;
+        }
+
+        .sort-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
         }
 
         .table-wrap {
@@ -205,8 +262,16 @@
             letter-spacing: 0.05em;
         }
 
+        :root[data-theme="dark"] th {
+            background: #1f2937;
+        }
+
         tbody tr:hover {
             background: #fafcff;
+        }
+
+        :root[data-theme="dark"] tbody tr:hover {
+            background: #0f172a;
         }
 
         .status-pill {
@@ -301,7 +366,10 @@
                 <h1>Retail Shop Inventory</h1>
                 <p>Track stock levels and manage products quickly.</p>
             </div>
-            <button class="refresh-btn" onclick="loadProducts()">Refresh</button>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button class="theme-toggle" id="themeToggle" type="button" onclick="toggleTheme()">🌙 Dark</button>
+                <button class="refresh-btn" onclick="loadProducts()">Refresh</button>
+            </div>
         </header>
 
         <section class="stats">
@@ -367,7 +435,11 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Name</th>
-                                <th>Quantity</th>
+                                <th>
+                                    <button type="button" class="sort-btn" onclick="toggleQuantitySort()">
+                                        Quantity <span id="quantitySortIndicator">↕</span>
+                                    </button>
+                                </th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -383,6 +455,26 @@
 
     <script>
         const API_URL = "/products";
+        const THEME_KEY = "retail-shop-theme";
+        let currentProducts = [];
+        let quantitySortDirection = "none";
+
+        function applyTheme(theme) {
+            const root = document.documentElement;
+            const isDark = theme === "dark";
+            root.setAttribute("data-theme", isDark ? "dark" : "light");
+            const button = document.getElementById("themeToggle");
+            if (button) {
+                button.textContent = isDark ? "☀ Light" : "🌙 Dark";
+            }
+        }
+
+        function toggleTheme() {
+            const root = document.documentElement;
+            const nextTheme = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            applyTheme(nextTheme);
+            localStorage.setItem(THEME_KEY, nextTheme);
+        }
 
         function showToast(message) {
             const toast = document.getElementById("toast");
@@ -392,6 +484,22 @@
             showToast.timeoutId = setTimeout(() => {
                 toast.classList.remove("show");
             }, 2200);
+        }
+
+        function updateQuantitySortIndicator() {
+            const indicator = document.getElementById("quantitySortIndicator");
+            if (!indicator) return;
+            indicator.textContent = quantitySortDirection === "asc" ? "↑" : quantitySortDirection === "desc" ? "↓" : "↕";
+        }
+
+        function toggleQuantitySort() {
+            if (quantitySortDirection === "none" || quantitySortDirection === "desc") {
+                quantitySortDirection = "asc";
+            } else {
+                quantitySortDirection = "desc";
+            }
+            updateQuantitySortIndicator();
+            renderTable(currentProducts);
         }
 
         function renderStats(products) {
@@ -417,7 +525,22 @@
                 return;
             }
 
-            products.forEach(product => {
+            const sortedProducts = [...products].sort((a, b) => {
+                const quantityA = Number(a.quantity || 0);
+                const quantityB = Number(b.quantity || 0);
+
+                if (quantitySortDirection === "asc") {
+                    return quantityA - quantityB;
+                }
+
+                if (quantitySortDirection === "desc") {
+                    return quantityB - quantityA;
+                }
+
+                return 0;
+            });
+
+            sortedProducts.forEach(product => {
                 const quantity = Number(product.quantity || 0);
                 const statusClass = quantity < 10 ? "status-low" : "status-good";
                 const statusText = quantity < 10 ? "Low Stock" : "In Stock";
@@ -448,6 +571,7 @@
                     return response.json();
                 })
                 .then(products => {
+                    currentProducts = products;
                     renderStats(products);
                     renderTable(products);
                 })
@@ -544,7 +668,11 @@
             .catch(error => showToast(error.message));
         }
 
-        window.onload = loadProducts;
+        window.onload = function() {
+            const savedTheme = localStorage.getItem(THEME_KEY) || "light";
+            applyTheme(savedTheme);
+            loadProducts();
+        };
     </script>
 </body>
 </html>
